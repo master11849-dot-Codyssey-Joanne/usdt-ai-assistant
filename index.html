@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USDT AI Trading Assistant</title>
+    <!-- Tailwind CSS CDN (깔끔한 애플 스타일 UI 구현용) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans h-screen flex flex-col">
+
+    <!-- 상단 헤더 -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
+        <h1 class="text-xl font-bold text-gray-900">🤖 USDT AI 트레이딩 비서</h1>
+        <div id="summary-badge" class="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium border border-blue-200">
+            데이터 요약 로딩 중...
+        </div>
+    </header>
+
+    <!-- 메인 레이아웃 (좌측: 대화기록 & 데이터관리 / 우측: 채팅창) -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- 좌측 사이드바 -->
+        <aside class="w-80 bg-white border-r border-gray-200 flex flex-col p-4 space-y-6 overflow-y-auto">
+            
+            <!-- 1. 데이터 관리 섹션 (CRUD) -->
+            <div>
+                <h2 class="text-sm font-bold text-gray-600 uppercase mb-3">📈 시계열 데이터 관리</h2>
+                <div class="space-y-2">
+                    <input type="text" id="input-date" placeholder="날짜 (예: 2026-08-14 20:00)" class="w-full text-sm border border-gray-300 rounded-lg p-2 focus:outline-none focus:border-blue-500">
+                    <input type="number" id="input-value" placeholder="값 (예: 1412.5)" class="w-full text-sm border border-gray-300 rounded-lg p-2 focus:outline-none focus:border-blue-500">
+                    <input type="text" id="input-memo" placeholder="메모 (선택사항)" class="w-full text-sm border border-gray-300 rounded-lg p-2 focus:outline-none focus:border-blue-500">
+                    <button onclick="addData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded-lg transition">데이터 추가하기</button>
+                </div>
+            </div>
+
+            <hr class="border-gray-200">
+
+            <!-- 2. 대화 기록 목록 섹션 -->
+            <div class="flex-1 flex flex-col">
+                <h2 class="text-sm font-bold text-gray-600 uppercase mb-3">💬 이전 대화 기록</h2>
+                <div id="conv-list" class="space-y-2 flex-1 overflow-y-auto">
+                    <!-- 대화 목록이 동적으로 들어갑니다 -->
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- 우측 메인 채팅 인터페이스 -->
+        <main class="flex-1 flex flex-col bg-gray-50">
+            
+            <!-- 채팅 메시지 표시 영역 -->
+            <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-4">
+                <div class="flex items-start space-x-3">
+                    <div class="bg-blue-600 text-white rounded-2xl px-4 py-3 max-w-lg text-sm shadow-sm">
+                        안녕하세요! USDT/KRW 시계열 데이터 분석 비서입니다. 데이터 상태나 트레이딩 전략에 대해 무엇이든 물어보세요!
+                    </div>
+                </div>
+            </div>
+
+            <!-- 로딩 표시 -->
+            <div id="loading" class="hidden px-6 py-2 text-xs text-gray-500 italic">
+                AI가 데이터를 분석하며 답변을 작성 중입니다...
+            </div>
+
+            <!-- 메시지 입력 영역 -->
+            <div class="p-4 bg-white border-t border-gray-200 flex items-center space-x-3">
+                <input type="text" id="chat-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.key === 'Enter') sendMessage()" class="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
+                <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition">전송</button>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- 프론트엔드 로직 스크립트 -->
+    <script>
+        const API_BASE = "http://127.0.0.1:8000";
+
+        // 페이지 로드 시 요약 정보 및 대화 목록 불러오기
+        window.onload = function() {
+            loadSummary();
+            loadConversations();
+        };
+
+        // 1. 데이터 요약 불러오기
+        async function loadSummary() {
+            try {
+                const res = await fetch(`${API_BASE}/api/data/summary`);
+                const data = await res.json();
+                const badge = document.getElementById("summary-badge");
+                badge.innerText = `기간: ${data.period} | 총 ${data.count}개 | 평균: ${data.metrics.average || 0} | 추세: ${data.trend}`;
+            } catch (err) {
+                console.error("요약 정보 로드 실패:", err);
+            }
+        }
+
+        // 2. 새 데이터 추가하기 (CRUD - Create)
+        async function addData() {
+            const date = document.getElementById("input-date").value;
+            const value = parseFloat(document.getElementById("input-value").value);
+            const memo = document.getElementById("input-memo").value;
+
+            if (!date || isNaN(value)) {
+                alert("날짜와 올바른 숫자를 입력해주세요!");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/data`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ date, value, memo })
+                });
+                if (res.ok) {
+                    alert("데이터가 추가되었습니다!");
+                    document.getElementById("input-date").value = "";
+                    document.getElementById("input-value").value = "";
+                    document.getElementById("input-memo").value = "";
+                    loadSummary(); // 요약 갱신
+                }
+            } catch (err) {
+                alert("데이터 추가 중 에러 발생");
+            }
+        }
+
+        // 3. 대화 목록 불러오기
+        async function loadConversations() {
+            try {
+                const res = await fetch(`${API_BASE}/api/conversations`);
+                const list = await res.json();
+                const container = document.getElementById("conv-list");
+                container.innerHTML = "";
+
+                list.forEach(conv => {
+                    const div = document.createElement("div");
+                    div.className = "p-2.5 bg-gray-50 hover:bg-gray-100 rounded-lg text-xs font-medium text-gray-700 cursor-pointer truncate border border-gray-100 transition";
+                    div.innerText = conv.title;
+                    div.onclick = () => loadConversationDetail(conv.id);
+                    container.appendChild(div);
+                });
+            } catch (err) {
+                console.error("대화 목록 로드 실패:", err);
+            }
+        }
+
+        // 4. 특정 대화 상세 불러오기
+        async function loadConversationDetail(id) {
+            try {
+                const res = await fetch(`${API_BASE}/api/conversations/${id}`);
+                const data = await res.json();
+                const chatBox = document.getElementById("chat-box");
+                chatBox.innerHTML = ""; // 기존 채팅창 초기화
+
+                data.messages.forEach(msg => {
+                    appendMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content);
+                });
+            } catch (err) {
+                alert("대화를 불러오지 못했습니다.");
+            }
+        }
+
+        // 5. 메시지 화면에 추가하는 유틸 함수
+        function appendMessage(sender, text) {
+            const chatBox = document.getElementById("chat-box");
+            const wrapper = document.createElement("div");
+            wrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'items-start'} space-x-3`;
+
+            const bubble = document.createElement("div");
+            bubble.className = `${sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-800'} rounded-2xl px-4 py-3 max-w-lg text-sm shadow-sm`;
+            bubble.innerText = text;
+
+            wrapper.appendChild(bubble);
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // 6. AI에게 메시지 전송하기
+        async function sendMessage() {
+            const input = document.getElementById("chat-input");
+            const text = input.value.trim();
+            if (!text) return;
+
+            appendMessage('user', text);
+            input.value = "";
+
+            // 로딩 표시 켜기
+            document.getElementById("loading").classList.remove("hidden");
+
+            try {
+                const res = await fetch(`${API_BASE}/api/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                
+                // 로딩 표시 끄기
+                document.getElementById("loading").classList.add("hidden");
+
+                if (res.ok) {
+                    appendMessage('assistant', data.reply);
+                    loadConversations(); // 대화 목록 새로고침
+                } else {
+                    appendMessage('assistant', "에러가 발생했습니다: " + (data.error || "알 수 없는 오류"));
+                }
+            } catch (err) {
+                document.getElementById("loading").classList.add("hidden");
+                appendMessage('assistant', "서버 통신 중 오류가 발생했습니다.");
+            }
+        }
+    </script>
+</body>
+</html>
