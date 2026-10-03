@@ -43,7 +43,6 @@
 프로젝트를 로컬 환경에서 직접 실행하여 테스트하는 방법입니다.
 
 ### **1. 저장소 클론 및 이동**
-```bash
 git clone [https://github.com/master11849-dot-Codyssey-Joanne/usdt-ai-assistant.git](https://github.com/master11849-dot-Codyssey-Joanne/usdt-ai-assistant.git)
 cd usdt-ai-assistant
 
