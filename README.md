@@ -71,6 +71,9 @@ uvicorn main:app --reload --port 8000
 프로젝트를 로컬 환경에서 직접 실행하여 테스트하는 방법입니다.
 
 클라우드 배포(Render) 및 로컬 실행 시 반드시 설정해야 하는 필수 환경 변수입니다.
+
 변수명                             설명                                            예시 / 비고
+
 OPENAI_API_KEY                   OpenAI API 연동을 위한 시크릿 키                  sk-Proj-...
+
 FIREBASE_SERVICE_ACCOUNT_JSON    Firebase 관리자 인증 JSON 전문 (또는 파일 경로)    { "type": "service_account", ... }
