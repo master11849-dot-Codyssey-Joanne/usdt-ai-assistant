@@ -1,4 +1,5 @@
 import os
+import json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
@@ -28,12 +29,20 @@ app.add_middleware(
 )
 
 # 3. Firebase Firestore 연동
-firebase_key_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+firebase_key_env = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
 
 # Firebase가 중복으로 실행되지 않도록 체크한 뒤 초기화합니다.
 if not firebase_admin._apps:
     try:
-        cred = credentials.Certificate(firebase_key_path)
+        # 환경 변수 값이 JSON 텍스트 문자열인 경우 (Render 클라우드 환경)
+        if firebase_key_env and firebase_key_env.strip().startswith("{"):
+            cred_dict = json.loads(firebase_key_env)
+            cred = credentials.Certificate(cred_dict)
+        else:
+            # 환경 변수 값이 파일 경로이거나 없는 경우 (로컬 컴퓨터 환경)
+            key_path = firebase_key_env or "firebase_key.json"
+            cred = credentials.Certificate(key_path)
+            
         firebase_admin.initialize_app(cred)
         print("✅ Firebase 연동 성공!")
     except Exception as e:
